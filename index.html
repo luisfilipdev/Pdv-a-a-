@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDV - Açaiteria Puro Sabor</title>
+<style>
+:root{--purple:#5b176d;--purple2:#7b238f;--green:#7caf3d;--bg:#f4f4f6;--text:#222;--muted:#777;--white:#fff;--red:#c62828}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--purple);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+header h1{font-size:19px;margin:0}header small{opacity:.85}
+nav{display:flex;gap:6px;background:#fff;padding:8px;border-bottom:1px solid #ddd;overflow:auto}
+nav button{border:0;background:#eee;padding:10px 14px;border-radius:9px;font-weight:bold;white-space:nowrap}
+nav button.active{background:var(--purple);color:#fff}
+main{max-width:1200px;margin:auto;padding:14px}.page{display:none}.page.active{display:block}
+.grid{display:grid;grid-template-columns:1.25fr .9fr;gap:14px}
+.card{background:#fff;border-radius:14px;padding:15px;box-shadow:0 2px 8px #0000000d;margin-bottom:14px}
+h2{margin:0 0 12px;font-size:18px}.products{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.product{padding:16px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:left;cursor:pointer}
+.product:hover{border-color:var(--purple);background:#faf5fc}.product b{display:block;font-size:16px}.price{color:var(--purple);font-weight:bold;margin-top:7px}
+table{width:100%;border-collapse:collapse}th,td{padding:9px 5px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+.total{font-size:24px;font-weight:bold;color:var(--purple);text-align:right;margin:15px 0}
+.btn{border:0;border-radius:9px;padding:11px 14px;font-weight:bold;cursor:pointer}.primary{background:var(--purple);color:#fff}.green{background:var(--green);color:#fff}.danger{background:#fee;color:var(--red)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+input,select{width:100%;padding:11px;border:1px solid #ccc;border-radius:9px;font-size:15px}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}.small{font-size:12px;color:var(--muted)}
+.paybox{display:grid;grid-template-columns:1fr 1fr;gap:8px}.paybox button{padding:11px;border:1px solid #ddd;border-radius:9px;background:#fff;font-weight:bold}.paybox button.selected{background:#eee0f3;border-color:var(--purple);color:var(--purple)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kpi{background:#fff;border-radius:12px;padding:14px}.kpi span{font-size:12px;color:var(--muted)}.kpi b{display:block;font-size:20px;margin-top:5px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.products{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:801px){.products{grid-template-columns:repeat(3,1fr)}}
+
+.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:center;justify-content:center;padding:18px}
+.modal.show{display:flex}.modalbox{background:#fff;border-radius:16px;padding:18px;width:min(430px,100%);box-shadow:0 10px 40px #0004}
+.modalbox h2{margin-top:0}.modal-actions{display:flex;gap:8px;margin-top:14px}.modal-actions button{flex:1}
+.quick{display:flex;gap:7px;margin:8px 0}.quick button{flex:1;border:1px solid #ddd;background:#f7f7f7;border-radius:8px;padding:8px;font-weight:bold}
+</style>
+</head>
+<body>
+<header><div><h1>Açaiteria Puro Sabor</h1><small>PDV • Caixa</small></div><strong id="clock"></strong></header>
+<nav>
+<button class="active" onclick="show('venda',this)">🛒 Venda</button>
+<button onclick="show('caixa',this)">💰 Caixa</button>
+<button onclick="show('resumo',this)">📊 Resumo</button>
+<button onclick="show('produtos',this)">📦 Produtos</button>
+</nav>
+<main>
+<section id="venda" class="page active">
+<div class="grid">
+<div class="card"><h2>Produtos</h2>
+<div class="products" id="products"></div>
+<p class="small" style="margin-top:10px">No açaí, você pode informar a quantidade vendida e o preço do litro em cada venda.</p>
+</div>
+<div class="card">
+<h2>Venda atual</h2><div id="cart"></div>
+<div class="row" style="margin-top:10px">
+<div><label>Desconto</label><input id="discount" type="number" min="0" step=".01" value="0" oninput="renderCart()"></div>
+<div><label>Tipo</label><select id="discountType" onchange="renderCart()"><option value="money">R$</option><option value="percent">%</option></select></div>
+</div>
+<div class="total" id="total">R$ 0,00</div>
+<h2>Pagamento</h2>
+<div class="paybox">
+<button id="cashBtn" class="selected" onclick="setPay('Dinheiro')">💵 Dinheiro</button>
+<button onclick="setPay('Pix')">⚡ Pix</button>
+<button onclick="setPay('Débito')">💳 Débito</button>
+<button onclick="setPay('Crédito')">💳 Crédito</button>
+</div>
+<div id="cashArea" style="margin-top:10px"><label>Valor recebido</label><input id="received" type="number" min="0" step=".01" oninput="renderCart()" placeholder="Ex.: 50,00"><div class="total" style="font-size:20px" id="change">Troco: R$ 0,00</div></div>
+<button class="btn green" style="width:100%;margin-top:8px" onclick="finishSale()">FINALIZAR VENDA</button>
+<button class="btn danger" style="width:100%;margin-top:8px" onclick="clearCart()">Limpar venda</button>
+</div></div>
+</section>
+
+<section id="caixa" class="page">
+<div class="card"><h2>Controle do caixa</h2>
+<div class="row"><div><label>Fundo inicial do caixa</label><input id="opening" type="number" step=".01" value="0"></div><button class="btn primary" onclick="openCash()">Abrir/atualizar caixa</button></div>
+<hr style="border:0;border-top:1px solid #eee;margin:15px 0">
+<div class="kpis">
+<div class="kpi"><span>Dinheiro em vendas</span><b id="cashSales">R$ 0,00</b></div>
+<div class="kpi"><span>Retiradas</span><b id="withdrawals">R$ 0,00</b></div>
+<div class="kpi"><span>Caixa esperado</span><b id="expected">R$ 0,00</b></div>
+<div class="kpi"><span>Total vendido</span><b id="gross">R$ 0,00</b></div>
+</div>
+<div class="card" style="margin-top:14px;background:#fafafa">
+<h2>Retirar dinheiro</h2><div class="row"><input id="withdraw" type="number" step=".01" placeholder="Valor da retirada"><button class="btn primary" onclick="withdrawMoney()">Registrar retirada</button></div>
+</div>
+<div class="card" style="background:#fafafa">
+<h2>Fechamento</h2><div class="row"><div><label>Dinheiro contado no caixa</label><input id="counted" type="number" step=".01" oninput="updateBox()"></div><div><label>Diferença</label><input id="difference" readonly></div></div>
+</div>
+</div>
+</section>
+
+<section id="resumo" class="page">
+<div class="card"><h2>Resumo das vendas</h2><div id="summary"></div></div>
+</section>
+
+<section id="produtos" class="page">
+<div class="card"><h2>Adicionar produto</h2>
+<div class="row"><div><label>Nome</label><input id="newName" placeholder="Ex.: Refrigerante"></div><div><label>Preço</label><input id="newPrice" type="number" step=".01" placeholder="5,00"></div><button class="btn primary" onclick="addProduct()">Adicionar</button></div>
+<p class="small">Os produtos cadastrados ficam disponíveis na tela de venda. Nesta versão de teste, ficam salvos neste navegador.</p>
+<div id="productList"></div>
+</div>
+</section>
+
+<div class="modal" id="acaiModal">
+  <div class="modalbox">
+    <h2 id="acaiTitle">Açaí 500 ml</h2>
+    <div class="row">
+      <div><label>Quantidade</label><input id="acaiQty" type="number" min="0.01" step="1" value="1"></div>
+      <div><label>Preço do litro (R$)</label><input id="acaiLiterPrice" type="number" min="0" step="0.01" value="18"></div>
+    </div>
+    <div class="quick">
+      <button onclick="setAcaiPrice(18)">R$ 18/L</button>
+      <button onclick="setAcaiPrice(15)">R$ 15/L</button>
+      <button onclick="setAcaiPrice(10)">R$ 10/L</button>
+    </div>
+    <div class="small" id="acaiPreview">Total: R$ 9,00</div>
+    <div class="modal-actions">
+      <button class="btn danger" onclick="closeAcai()">Cancelar</button>
+      <button class="btn green" onclick="addAcai()">Adicionar à venda</button>
+    </div>
+  </div>
+</div>
+</main>
+<script>
+const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+let products=JSON.parse(localStorage.getItem('ps_products')||'null')||[
+{name:'Açaí 500 ml',price:18,kind:'acai'},{name:'Açaí 1 litro',price:18,kind:'acai'},{name:'Farinha de puba',price:10},{name:'Tapioca',price:15}
+];
+// Migration for older versions: açaí prices are now treated as price-per-liter.
+products.forEach(p=>{if(/^Açaí 500 ml$/i.test(p.name)||/^Açaí 1 litro$/i.test(p.name)){p.kind='acai';if(p.name==='Açaí 500 ml' && p.price<=10)p.price=18;}});
+let cart=[],pay='Dinheiro',sales=JSON.parse(localStorage.getItem('ps_sales')||'[]'),opening=+localStorage.getItem('ps_opening')||0,withdrawals=+localStorage.getItem('ps_withdrawals')||0;
+const save=()=>{localStorage.setItem('ps_products',JSON.stringify(products));localStorage.setItem('ps_sales',JSON.stringify(sales));localStorage.setItem('ps_opening',opening);localStorage.setItem('ps_withdrawals',withdrawals)};
+function show(id,b){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(id==='caixa')updateBox();if(id==='resumo')renderSummary();if(id==='produtos')renderProductList()}
+function renderProducts(){
+  document.getElementById('products').innerHTML=products.map((p,i)=>{
+    const isAcai = p.kind==='acai';
+    return `<button class="product" onclick="${isAcai?`openAcai(${i})`:`addToCart(${i})`}">
+      <b>${p.name}</b><span class="price">${isAcai?'Preço por litro: '+money(p.price):money(p.price)}</span>
+    </button>`
+  }).join('')
+}
+function addToCart(i){
+  let p=products[i],x=cart.find(x=>x.name===p.name);
+  if(x)x.qty++;else cart.push({...p,qty:1});
+  renderCart()
+}
+let acaiProductIndex=0;
+function openAcai(i){
+  acaiProductIndex=i;
+  const p=products[i];
+  document.getElementById('acaiTitle').textContent=p.name;
+  document.getElementById('acaiQty').value=1;
+  document.getElementById('acaiLiterPrice').value=p.price;
+  updateAcaiPreview();
+  document.getElementById('acaiModal').classList.add('show');
+}
+function closeAcai(){document.getElementById('acaiModal').classList.remove('show')}
+function setAcaiPrice(v){document.getElementById('acaiLiterPrice').value=v;updateAcaiPreview()}
+function updateAcaiPreview(){
+  const p=products[acaiProductIndex]||products[0];
+  const qty=+document.getElementById('acaiQty').value||0;
+  const liter=+document.getElementById('acaiLiterPrice').value||0;
+  const liters=p.name.includes('500')?0.5:1;
+  document.getElementById('acaiPreview').textContent='Total: '+money(qty*liters*liter);
+}
+function addAcai(){
+  const p=products[acaiProductIndex];
+  const qty=+document.getElementById('acaiQty').value||0;
+  const liter=+document.getElementById('acaiLiterPrice').value||0;
+  const liters=p.name.includes('500')?0.5:1;
+  if(qty<=0||liter<0)return alert('Informe quantidade e preço do litro.');
+  cart.push({name:p.name,price:liter*liters,qty:qty,unitLiters:liters,literPrice:liter});
+  closeAcai();renderCart()
+}
+function removeItem(i){cart.splice(i,1);renderCart()}
+function subtotal(){return cart.reduce((s,x)=>s+x.price*x.qty,0)}
+function finalTotal(){let sub=subtotal(),d=+document.getElementById('discount').value||0; if(document.getElementById('discountType').value==='percent')d=sub*d/100;return Math.max(0,sub-d)}
+function renderCart(){
+  let el=document.getElementById('cart');
+  el.innerHTML=cart.length?`<table><tr><th>Item</th><th>Qtd.</th><th>Total</th><th></th></tr>${cart.map((x,i)=>{
+    const extra=x.literPrice!==undefined?`<div class="small">${money(x.literPrice)}/L</div>`:'';
+    return `<tr><td>${x.name}${extra}</td><td>${x.qty}</td><td>${money(x.price*x.qty)}</td><td><button class="btn danger" onclick="removeItem(${i})">×</button></td></tr>`
+  }).join('')}</table>`:'<p class="small">Nenhum item adicionado.</p>';
+  document.getElementById('total').textContent=money(finalTotal());
+  let r=+document.getElementById('received').value||0;
+  document.getElementById('change').textContent='Troco: '+money(Math.max(0,r-finalTotal()))
+}
+function setPay(x){pay=x;document.querySelectorAll('.paybox button').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');document.getElementById('cashArea').style.display=x==='Dinheiro'?'block':'none'}
+function finishSale(){if(!cart.length)return alert('Adicione pelo menos um produto.');let total=finalTotal(),received=pay==='Dinheiro'?(+document.getElementById('received').value||0):total;if(pay==='Dinheiro'&&received<total)return alert('O valor recebido é menor que o total.');let d=subtotal()-total;sales.push({date:new Date().toISOString(),items:cart.map(x=>({...x})),subtotal:subtotal(),discount:d,total,pay,received,change:received-total});save();alert('Venda finalizada!\\nTotal: '+money(total)+(pay==='Dinheiro'?'\\nTroco: '+money(received-total):''));clearCart()}
+function clearCart(){cart=[];document.getElementById('discount').value=0;document.getElementById('received').value='';renderCart()}
+function openCash(){opening=+document.getElementById('opening').value||0;save();updateBox();alert('Fundo inicial salvo: '+money(opening))}
+function withdrawMoney(){let v=+document.getElementById('withdraw').value||0;if(v<=0)return;if(v>(opening+sales.filter(s=>s.pay==='Dinheiro').reduce((a,s)=>a+s.total,0)-withdrawals))return alert('Valor maior que o dinheiro disponível no caixa.');withdrawals+=v;document.getElementById('withdraw').value='';save();updateBox()}
+function updateBox(){let cs=sales.filter(s=>s.pay==='Dinheiro').reduce((a,s)=>a+s.total,0),gross=sales.reduce((a,s)=>a+s.total,0),exp=opening+cs-withdrawals;document.getElementById('cashSales').textContent=money(cs);document.getElementById('withdrawals').textContent=money(withdrawals);document.getElementById('expected').textContent=money(exp);document.getElementById('gross').textContent=money(gross);let c=+document.getElementById('counted').value||0;document.getElementById('difference').value=money(c-exp)}
+function renderSummary(){let by={Dinheiro:0,Pix:0,'Débito':0,'Crédito':0};sales.forEach(s=>by[s.pay]=(by[s.pay]||0)+s.total);document.getElementById('summary').innerHTML=`<div class="kpis">${Object.entries(by).map(([k,v])=>`<div class="kpi"><span>${k}</span><b>${money(v)}</b></div>`).join('')}</div><hr style="border:0;border-top:1px solid #eee;margin:15px 0"><table><tr><th>Data</th><th>Pagamento</th><th>Total</th><th>Desconto</th></tr>${sales.slice().reverse().map(s=>`<tr><td>${new Date(s.date).toLocaleString('pt-BR')}</td><td>${s.pay}</td><td>${money(s.total)}</td><td>${money(s.discount)}</td></tr>`).join('')}</table>`}
+function addProduct(){let n=document.getElementById('newName').value.trim(),p=+document.getElementById('newPrice').value;if(!n||p<=0)return alert('Informe nome e preço.');products.push({name:n,price:p});save();document.getElementById('newName').value='';document.getElementById('newPrice').value='';renderProducts();renderProductList()}
+function renderProductList(){document.getElementById('productList').innerHTML='<h3>Produtos cadastrados</h3>'+products.map((p,i)=>`<div class="row" style="margin:6px 0"><span>${p.name} — ${money(p.price)}</span><button class="btn danger" onclick="delProduct(${i})">Excluir</button></div>`).join('')}
+function delProduct(i){if(confirm('Excluir '+products[i].name+'?')){products.splice(i,1);save();renderProducts();renderProductList()}}
+function clock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+renderProducts();renderCart();document.getElementById('opening').value=opening;document.getElementById('acaiQty').addEventListener('input',updateAcaiPreview);document.getElementById('acaiLiterPrice').addEventListener('input',updateAcaiPreview);clock();setInterval(clock,1000);
+document.getElementById('acaiModal').addEventListener('click',e=>{if(e.target.id==='acaiModal')closeAcai()});
+</script>
+</body>
+</html>
