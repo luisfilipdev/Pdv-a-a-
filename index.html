@@ -304,10 +304,15 @@ window.deleteSale=async function(id){
 };
 window.renderSalesMini=function(){
  const h=document.getElementById('salesMini');if(!h)return;
- const recent=sales.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,15);
+ const today=todayKey();
+ const todaySales=sales.filter(s=>dateKey(s.date)===today);
+ const todayLiters=todaySales.reduce((sum,s)=>sum+litersFromSale(s),0);
+ const recent=todaySales.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,15);
  const head=isAdmin()?'<th>Vendedor</th>':'';
  const action=isAdmin()?'<th></th>':'';
- h.innerHTML=recent.length?`<table><tr><th>Data</th>${head}<th>Pagamento</th><th>Itens</th><th>Total</th>${action}</tr>${recent.map(s=>`<tr><td>${new Date(s.date).toLocaleString('pt-BR')}</td>${isAdmin()?`<td><b>${escapeHtml(s.seller||'—')}</b></td>`:''}<td><span class="badge">${s.pay}</span></td><td>${s.items.map(i=>escapeHtml(i.name)+' × '+i.qty).join('<br>')}</td><td>${money(s.total)}</td>${isAdmin()?`<td><button class="btn danger" onclick="deleteSale('${s.id}')">Remover</button></td>`:''}</tr>`).join('')}</table>`:'<p class="small">Nenhuma venda registrada hoje.</p>';
+ const litersKpi=`<div class="kpis" style="margin-bottom:12px"><div class="kpi"><span>Açaí vendido hoje</span><b>${todayLiters.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})} L</b></div></div>`;
+ const table=recent.length?`<table><tr><th>Data</th>${head}<th>Pagamento</th><th>Itens</th><th>Litros</th><th>Total</th>${action}</tr>${recent.map(s=>`<tr><td>${new Date(s.date).toLocaleString('pt-BR')}</td>${isAdmin()?`<td><b>${escapeHtml(s.seller||'—')}</b></td>`:''}<td><span class="badge">${s.pay}</span></td><td>${s.items.map(i=>escapeHtml(i.name)+' × '+i.qty).join('<br>')}</td><td>${litersFromSale(s).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})} L</td><td>${money(s.total)}</td>${isAdmin()?`<td><button class="btn danger" onclick="deleteSale('${s.id}')">Remover</button></td>`:''}</tr>`).join('')}</table>`:'<p class="small">Nenhuma venda registrada hoje.</p>';
+ h.innerHTML=litersKpi+table;
 };
 
 // Fase 2: caixa, compras, despesas e estoque no Supabase.
